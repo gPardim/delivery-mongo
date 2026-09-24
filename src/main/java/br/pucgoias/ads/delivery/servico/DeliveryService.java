@@ -1,0 +1,88 @@
+package br.pucgoias.ads.delivery.servico;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+import org.bson.types.Decimal128;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
+import org.springframework.stereotype.Service;
+
+import com.mongodb.client.result.UpdateResult;
+
+import br.pucgoias.ads.delivery.dominio.Cliente;
+import br.pucgoias.ads.delivery.dominio.FaturamentoRestaurante;
+import br.pucgoias.ads.delivery.dominio.ItemCardapio;
+import br.pucgoias.ads.delivery.dominio.Pedido;
+import br.pucgoias.ads.delivery.dominio.Restaurante;
+import br.pucgoias.ads.delivery.excecao.RecursoNaoEncontradoException;
+import br.pucgoias.ads.delivery.excecao.RestauranteDuplicadoException;
+import br.pucgoias.ads.delivery.repositorio.PedidoRepository;
+import br.pucgoias.ads.delivery.repositorio.RestauranteRepository;
+
+@Service
+public class DeliveryService {
+
+    private final RestauranteRepository restauranteRepository;
+    private final PedidoRepository pedidoRepository;
+    private final MongoTemplate mongoTemplate;
+
+    public DeliveryService(RestauranteRepository restauranteRepository,
+                           PedidoRepository pedidoRepository,
+                           MongoTemplate mongoTemplate) {
+        this.restauranteRepository = restauranteRepository;
+        this.pedidoRepository = pedidoRepository;
+        this.mongoTemplate = mongoTemplate;
+    }
+
+    public Restaurante cadastrarRestaurante(Restaurante restaurante) {
+        try {
+            return restauranteRepository.save(restaurante);
+        } catch (DuplicateKeyException e) {
+            throw new RestauranteDuplicadoException(restaurante.getNome());
+        }
+    }
+
+    public Restaurante buscarRestaurante(String id) {
+        return restauranteRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Restaurante", id));
+    }
+
+    public Pedido buscarPedido(String id) {
+        return pedidoRepository.findById(id)
+                .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido", id));
+    }
+
+    public void alterarPreco(String restauranteId, String codigo, BigDecimal novoPreco) {
+        Query query = Query.query(Criteria.where("id").is(restauranteId)
+                .and("cardapio.codigo").is(codigo));
+        Update update = new Update().set("cardapio.$.preco", new Decimal128(novoPreco));
+        UpdateResult resultado = mongoTemplate.updateFirst(query, update, Restaurante.class);
+        if (resultado.getMatchedCount() == 0) {
+            throw new RecursoNaoEncontradoException("Item " + codigo + " do restaurante", restauranteId);
+        }
+    }
+
+    public void adicionarItemCardapio(String restauranteId, ItemCardapio item) {
+        throw new UnsupportedOperationException("TODO: adicionarItemCardapio");
+    }
+
+    public Pedido criarPedido(String restauranteId, Cliente cliente, List<ItemSolicitado> solicitados) {
+        throw new UnsupportedOperationException("TODO: criarPedido");
+    }
+
+    public Pedido avancarStatus(String pedidoId) {
+        throw new UnsupportedOperationException("TODO: avancarStatus");
+    }
+
+    public Pedido cancelarPedido(String pedidoId) {
+        throw new UnsupportedOperationException("TODO: cancelarPedido");
+    }
+
+    public List<FaturamentoRestaurante> faturamentoPorRestaurante() {
+        throw new UnsupportedOperationException("TODO: faturamentoPorRestaurante");
+    }
+}
