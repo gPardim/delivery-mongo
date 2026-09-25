@@ -2,10 +2,13 @@ package br.pucgoias.ads.delivery.dominio;
 
 import java.math.BigDecimal;
 
+import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
+
 public record ItemPedido(
         String codigo,
         String nome,
-        BigDecimal precoUnitario,
+        @Field(targetType = FieldType.DECIMAL128) BigDecimal precoUnitario,
         int quantidade) {
 
     public BigDecimal subtotal() {

@@ -10,7 +10,12 @@ public enum StatusPedido {
     CANCELADO;
 
     public StatusPedido proximo() {
-        throw new UnsupportedOperationException("TODO: implementar StatusPedido.proximo()");
+        return switch (this) {
+            case RECEBIDO -> EM_PREPARO;
+            case EM_PREPARO -> SAIU_PARA_ENTREGA;
+            case SAIU_PARA_ENTREGA -> ENTREGUE;
+            case ENTREGUE, CANCELADO -> throw new TransicaoInvalidaException(this, "avancarStatus");
+        };
     }
 
     public boolean permiteCancelamento() {

@@ -4,10 +4,20 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
+
+@Document(collection = "pedidos")
 public class Pedido {
 
+    @Id
     private String id;
 
+    @Indexed
     private String restauranteId;
 
     private Cliente cliente;
@@ -16,10 +26,12 @@ public class Pedido {
 
     private StatusPedido status;
 
+    @Field(targetType = FieldType.DECIMAL128)
     private BigDecimal total;
 
     private Instant criadoEm;
 
+    @Version
     private Long versao;
 
     protected Pedido() {
@@ -30,14 +42,21 @@ public class Pedido {
         this.cliente = cliente;
         this.itens = List.copyOf(itens);
         this.criadoEm = Instant.now();
+        this.status = StatusPedido.RECEBIDO;
+        this.total = itens.stream()
+                .map(ItemPedido::subtotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     public void avancarStatus() {
-        throw new UnsupportedOperationException("TODO: implementar Pedido.avancarStatus()");
+        this.status = this.status.proximo();
     }
 
     public void cancelar() {
-        throw new UnsupportedOperationException("TODO: implementar Pedido.cancelar()");
+        if (!status.permiteCancelamento()) {
+            throw new br.pucgoias.ads.delivery.excecao.TransicaoInvalidaException(status, "cancelar");
+        }
+        this.status = StatusPedido.CANCELADO;
     }
 
     public String getId() { return id; }
