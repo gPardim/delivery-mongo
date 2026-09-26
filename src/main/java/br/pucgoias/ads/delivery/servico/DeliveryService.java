@@ -102,11 +102,15 @@ public class DeliveryService {
     }
 
     public Pedido avancarStatus(String pedidoId) {
-        throw new UnsupportedOperationException("TODO: avancarStatus");
+        Pedido pedido = buscarPedido(pedidoId);
+        pedido.avancarStatus();
+        return pedidoRepository.save(pedido);
     }
 
     public Pedido cancelarPedido(String pedidoId) {
-        throw new UnsupportedOperationException("TODO: cancelarPedido");
+        Pedido pedido = buscarPedido(pedidoId);
+        pedido.cancelar();
+        return pedidoRepository.save(pedido);
     }
 
     public List<FaturamentoRestaurante> faturamentoPorRestaurante() {
