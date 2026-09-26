@@ -81,7 +81,24 @@ public class DeliveryService {
     }
 
     public Pedido criarPedido(String restauranteId, Cliente cliente, List<ItemSolicitado> solicitados) {
-        throw new UnsupportedOperationException("TODO: criarPedido");
+        if (solicitados == null || solicitados.isEmpty()) {
+            throw new br.pucgoias.ads.delivery.excecao.PedidoInvalidoException("pedido deve conter ao menos um item");
+        }
+        Restaurante restaurante = buscarRestaurante(restauranteId);
+        List<br.pucgoias.ads.delivery.dominio.ItemPedido> itens = new java.util.ArrayList<>();
+        for (ItemSolicitado solicitado : solicitados) {
+            if (solicitado.quantidade() <= 0) {
+                throw new br.pucgoias.ads.delivery.excecao.PedidoInvalidoException(
+                        "quantidade deve ser positiva: " + solicitado.codigo());
+            }
+            ItemCardapio itemCardapio = restaurante.buscarItem(solicitado.codigo())
+                    .filter(ItemCardapio::disponivel)
+                    .orElseThrow(() -> new br.pucgoias.ads.delivery.excecao.ItemIndisponivelException(solicitado.codigo()));
+            itens.add(new br.pucgoias.ads.delivery.dominio.ItemPedido(
+                    itemCardapio.codigo(), itemCardapio.nome(), itemCardapio.preco(), solicitado.quantidade()));
+        }
+        Pedido pedido = new Pedido(restauranteId, cliente, itens);
+        return pedidoRepository.save(pedido);
     }
 
     public Pedido avancarStatus(String pedidoId) {
