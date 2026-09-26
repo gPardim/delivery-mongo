@@ -17,6 +17,7 @@ import br.pucgoias.ads.delivery.dominio.Cliente;
 import br.pucgoias.ads.delivery.dominio.Endereco;
 import br.pucgoias.ads.delivery.dominio.FaturamentoRestaurante;
 import br.pucgoias.ads.delivery.dominio.ItemCardapio;
+import br.pucgoias.ads.delivery.dominio.ItemPedido;
 import br.pucgoias.ads.delivery.dominio.Pedido;
 import br.pucgoias.ads.delivery.dominio.Restaurante;
 import br.pucgoias.ads.delivery.dominio.StatusPedido;
@@ -98,31 +99,88 @@ class DeliveryServiceTest {
     @Test
     @DisplayName("5. Item e incluido no cardapio; codigo repetido e rejeitado (R2)")
     void caso5_adicionarItem() {
-        fail("Caso 5 a implementar");
+        ItemCardapio novo = new ItemCardapio("REFRI", "Refrigerante lata", new BigDecimal("6.00"), true);
+        servico.adicionarItemCardapio(cerrado.getId(), novo);
+
+        Restaurante lido = servico.buscarRestaurante(cerrado.getId());
+        assertThat(lido.getCardapio()).hasSize(4);
+        assertThat(lido.buscarItem("REFRI")).isPresent();
+
+        ItemCardapio duplicado = new ItemCardapio("PAMONHA", "Pamonha doce", new BigDecimal("14.00"), true);
+        assertThatThrownBy(() -> servico.adicionarItemCardapio(cerrado.getId(), duplicado))
+                .isInstanceOf(ItemDuplicadoException.class);
+
+        Restaurante depois = servico.buscarRestaurante(cerrado.getId());
+        assertThat(depois.getCardapio()).hasSize(4);
     }
 
     @Test
     @DisplayName("6. Pedido copia nome e preco e calcula o total (R3)")
     void caso6_criarPedido() {
-        fail("Caso 6 a implementar");
+        Pedido pedido = servico.criarPedido(cerrado.getId(), ana, List.of(
+                new ItemSolicitado("PAMONHA", 2),
+                new ItemSolicitado("EMPADAO", 1)));
+
+        assertThat(pedido.getId()).isNotBlank();
+        assertThat(pedido.getStatus()).isEqualTo(StatusPedido.RECEBIDO);
+        assertThat(pedido.getTotal()).isEqualByComparingTo("49.50");
+        assertThat(pedido.getItens()).extracting(ItemPedido::nome)
+                .containsExactlyInAnyOrder("Pamonha de sal", "Empadao goiano");
     }
 
     @Test
     @DisplayName("7. Pedido vazio, item indisponivel ou inexistente sao rejeitados (R3)")
     void caso7_pedidoInvalido() {
-        fail("Caso 7 a implementar");
+        assertThatThrownBy(() -> servico.criarPedido(cerrado.getId(), ana, List.of()))
+                .isInstanceOf(PedidoInvalidoException.class);
+
+        assertThatThrownBy(() -> servico.criarPedido(cerrado.getId(), ana,
+                List.of(new ItemSolicitado("PEQUI", 1))))
+                .isInstanceOf(ItemIndisponivelException.class);
+
+        assertThatThrownBy(() -> servico.criarPedido(cerrado.getId(), ana,
+                List.of(new ItemSolicitado("INEXISTENTE", 1))))
+                .isInstanceOf(ItemIndisponivelException.class);
+
+        assertThat(pedidoRepository.findAll()).isEmpty();
     }
 
     @Test
     @DisplayName("8. Alteracao de preco no cardapio nao afeta pedido existente (R4)")
     void caso8_snapshotDePreco() {
-        fail("Caso 8 a implementar");
+        Pedido pedido = servico.criarPedido(cerrado.getId(), ana, List.of(new ItemSolicitado("PAMONHA", 1)));
+        BigDecimal totalOriginal = pedido.getTotal();
+
+        servico.alterarPreco(cerrado.getId(), "PAMONHA", new BigDecimal("20.00"));
+
+        Pedido pedidoRecarregado = servico.buscarPedido(pedido.getId());
+        assertThat(pedidoRecarregado.getTotal()).isEqualByComparingTo(totalOriginal);
+        assertThat(pedidoRecarregado.getTotal()).isEqualByComparingTo("12.00");
     }
 
     @Test
     @DisplayName("9. Transicoes de status respeitam o ciclo de vida (R6)")
     void caso9_transicoes() {
-        fail("Caso 9 a implementar");
+        Pedido pedido = servico.criarPedido(cerrado.getId(), ana, List.of(new ItemSolicitado("PAMONHA", 1)));
+
+        Pedido emPreparo = servico.avancarStatus(pedido.getId());
+        assertThat(emPreparo.getStatus()).isEqualTo(StatusPedido.EM_PREPARO);
+
+        assertThatThrownBy(() -> servico.cancelarPedido(pedido.getId()))
+                .isInstanceOf(TransicaoInvalidaException.class);
+
+        Pedido saiuParaEntrega = servico.avancarStatus(pedido.getId());
+        assertThat(saiuParaEntrega.getStatus()).isEqualTo(StatusPedido.SAIU_PARA_ENTREGA);
+
+        Pedido entregue = servico.avancarStatus(pedido.getId());
+        assertThat(entregue.getStatus()).isEqualTo(StatusPedido.ENTREGUE);
+
+        assertThatThrownBy(() -> servico.avancarStatus(pedido.getId()))
+                .isInstanceOf(TransicaoInvalidaException.class);
+
+        Pedido novoPedido = servico.criarPedido(cerrado.getId(), ana, List.of(new ItemSolicitado("PAMONHA", 1)));
+        Pedido cancelado = servico.cancelarPedido(novoPedido.getId());
+        assertThat(cancelado.getStatus()).isEqualTo(StatusPedido.CANCELADO);
     }
 
     @Test
