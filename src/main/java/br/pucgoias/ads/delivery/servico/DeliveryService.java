@@ -114,6 +114,20 @@ public class DeliveryService {
     }
 
     public List<FaturamentoRestaurante> faturamentoPorRestaurante() {
-        throw new UnsupportedOperationException("TODO: faturamentoPorRestaurante");
+        org.springframework.data.mongodb.core.aggregation.Aggregation agregacao =
+                org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(
+                    org.springframework.data.mongodb.core.aggregation.Aggregation.match(
+                            Criteria.where("status").is(br.pucgoias.ads.delivery.dominio.StatusPedido.ENTREGUE)),
+                    org.springframework.data.mongodb.core.aggregation.Aggregation.group("restauranteId")
+                            .sum("total").as("faturamento")
+                            .count().as("quantidadePedidos"),
+                    org.springframework.data.mongodb.core.aggregation.Aggregation
+                            .project("faturamento", "quantidadePedidos")
+                            .and("restauranteId").previousOperation(),
+                    org.springframework.data.mongodb.core.aggregation.Aggregation.sort(
+                            org.springframework.data.domain.Sort.Direction.DESC, "faturamento")
+                );
+        return mongoTemplate.aggregate(agregacao, Pedido.class, FaturamentoRestaurante.class)
+                .getMappedResults();
     }
 }
