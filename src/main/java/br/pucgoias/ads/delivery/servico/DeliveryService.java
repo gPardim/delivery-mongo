@@ -66,8 +66,18 @@ public class DeliveryService {
         }
     }
 
+
     public void adicionarItemCardapio(String restauranteId, ItemCardapio item) {
-        throw new UnsupportedOperationException("TODO: adicionarItemCardapio");
+        Query query = Query.query(Criteria.where("id").is(restauranteId)
+                .and("cardapio.codigo").ne(item.codigo()));
+        Update update = new Update().push("cardapio", item);
+        UpdateResult resultado = mongoTemplate.updateFirst(query, update, Restaurante.class);
+        if (resultado.getMatchedCount() == 0) {
+            if (!restauranteRepository.existsById(restauranteId)) {
+                throw new RecursoNaoEncontradoException("Restaurante", restauranteId);
+            }
+            throw new br.pucgoias.ads.delivery.excecao.ItemDuplicadoException(item.codigo());
+        }
     }
 
     public Pedido criarPedido(String restauranteId, Cliente cliente, List<ItemSolicitado> solicitados) {
